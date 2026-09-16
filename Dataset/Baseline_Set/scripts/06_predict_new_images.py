@@ -1,19 +1,4 @@
-"""Run the trained model(s) on a folder of brand-new images (e.g. freshly
-captured from the UE simulation) that have no ground-truth labels.
-
-Usage:
-  1. Drop your new images into input_images/new_test_images/ (create the
-     folder, any .png/.jpg files).
-  2. Run this script (via PyCharm run config "06_predict_new_images", or
-     directly with the ObjDetEnv interpreter).
-  3. Annotated images + a per-image detection summary land in
-     output_images/new_test_predictions/.
-
-By default this uses the "with_aug_dr_trans" model, since with-aug was the
-better-performing variant in the original comparison (see TRAINING_REPORT.md).
-Set RUN_BOTH_MODELS=True below to also run "no_aug_dr_trans" side-by-side,
-same as 05_plot_test_predictions.py did for val.
-"""
+"""Run the trained model(s) on a folder of brand-new images (e.g. freshly captured from the UE simulation) that have no ground-truth labels."""
 import os
 
 from PIL import Image

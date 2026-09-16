@@ -1,12 +1,4 @@
-"""Evaluate both trained models (no_aug_dr_trans vs with_aug_dr_trans) on the
-val split and compare per-class AP plus a handful of side-by-side prediction
-images.
-
-Run this after both 02_train_no_aug.py and 03_train_with_aug.py have finished.
-Validates against the val split named in data.yaml (input_images/dr_trans_imgs/
-images/val) -- this is the validation set, not the held-out real-photo test set
-in input_images/real_test_images (see 07_predict_real_test_images.py for that).
-"""
+"""Evaluate both trained models (no_aug_dr_trans vs with_aug_dr_trans) on the val split and compare per-class AP plus a handful of side-by-side prediction images."""
 import os
 
 from ultralytics import YOLO

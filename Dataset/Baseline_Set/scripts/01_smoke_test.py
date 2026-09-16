@@ -1,9 +1,4 @@
-"""Smoke test: confirm the training pipeline runs end-to-end on this GPU/data.
-
-Uses the smallest model (yolo26n) and 3 epochs at 640px, full train/val split.
-Not meant to produce a usable model -- just to catch pipeline/data errors fast
-before committing to the two longer runs (train_no_aug.py / train_with_aug.py).
-"""
+"""Smoke test: confirm the training pipeline runs end-to-end on this GPU/data."""
 import os
 
 from ultralytics import YOLO

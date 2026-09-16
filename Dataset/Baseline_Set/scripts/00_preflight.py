@@ -1,9 +1,4 @@
-"""Pre-flight sanity check for the Baseline_Set YOLO dataset.
-
-Verifies GPU availability, label file integrity (class ids in range, box
-coords in [0,1], image/label count parity per split), and renders a few
-sample images with boxes overlaid for a quick visual sanity check.
-"""
+"""Pre-flight sanity check for the Baseline_Set YOLO dataset."""
 import os
 import random
 

@@ -1,67 +1,4 @@
-"""
-Step 5 (label derivation) - per-frame YOLO bounding boxes for the 500-frame
-survey capture (Dataset/images/{rgb,depth}/frame_#####.*, Dataset/poses_survey_01.json).
-
-DESIGN CHANGE vs. the original plan text: Step 5 was written to read a class-color
-mask PNG for per-pixel class matching and box clipping. That mask-material capture
-path never worked in this project (SceneCaptureComponent2D silently skips
-post-process material blendables - see gotcha #3 in config.py and the Session 2
-update in the plan doc), so RGB/mask were replaced with RGB/depth during Step 4.
-This module derives labels from CANDIDATE GEOMETRY + the depth buffer instead:
-
-  1. gather_candidates() walks every foliage HISM instance + tagged mesh actor
-     ONCE and records its world-space AABB (reuses tag_stencil_classes's
-     CLASS_STENCIL_MAP for which meshes/actors belong to which class). This is
-     static geometry - cached to disk (candidates_cache.json) so it never needs
-     re-running unless the level's foliage/rocks change.
-  2. run_labeling() re-plays the saved poses (RGB frames are untouched - already
-     on disk from Step 4). For each frame it only re-runs the DEPTH capture (RGB
-     capture_source/material is unaffected by any of this), then for every
-     candidate within visibility range:
-       - projects the world AABB corners to screen space with a manual pinhole
-         projection (camera basis from the pose Rotator; FOV/resolution read
-         from the live SCS_Capture_RGB/Depth rig - both share fov_angle=90,
-         1024x1024, aspect 1:1, confirmed live 2026-07-21),
-       - rejects it beyond VISIBILITY_RANGE_CM (fog-blindness cull - Step 3's
-         "handled in Step 5" note),
-       - rejects boxes under MIN_BOX_PX on a side,
-       - samples the depth buffer at 5 points inside the projected box and
-         rejects candidates where a majority of samples read a nearer depth
-         than the candidate itself (occluded by something else - the
-         depth-based replacement for the mask-pixel occlusion test).
-  3. Writes YOLO `<class_id> cx cy w h` (normalized, one .txt per frame) into
-     Dataset/labels/, plus a dataset.json manifest recording every kept box.
-
-KNOWN LIMITATION vs. the original plan: without the class-color mask, a kept box
-is the projected AABB as-is (occlusion-tested by 5 sample points), not "clipped
-to the visible extent of class pixels" - a box can include some occluded
-interior pixels the 5 samples happened to miss. Acceptable for a feasibility
-test; revisit with denser sampling if training shows a real precision problem.
-
-VISIBILITY_RANGE_CM is read LIVE from BP_UnderWater5's 'Fog Distance' BP
-variable (the "surviving" rig per the plan's Step 7 DR table) - this is the
-actual shader-side visibility cutoff baked into the RGB frames already on disk,
-but per config.py's gotchas it is an in-memory, NOT persisted, value. If you
-re-run this after an editor restart or a turbidity change, re-check it against
-what was live when Step 4's images were captured, or you'll cull to the wrong
-range.
-
-Usage:
-    import dataset.config as cfg
-    import dataset.label_derivation as ld
-
-    candidates = ld.gather_candidates(cfg)            # ~30-90s, one-time
-    ld.save_candidates(candidates, ld.candidates_cache_path(cfg))
-
-    candidates = ld.load_candidates(ld.candidates_cache_path(cfg))     # subsequent sessions
-    grid = ld.build_grid(candidates)
-    vis_range_cm = ld.get_visibility_range_cm()
-    poses = ld.pose_sampling.load_manifest(manifest_path)["poses"]
-
-    # chunked, like capture_rig.run_capture - re-render depth + write labels
-    ld.run_labeling(cfg, poses, candidates, grid, vis_range_cm,
-                    start_frame=0, end_frame=50)
-"""
+"""Step 5 (label derivation) - per-frame YOLO bounding boxes for the 500-frame survey capture (Dataset/images/{rgb,depth}/frame_#####.*, Dataset/poses_survey_01.json)."""
 import json
 import math
 import os
@@ -72,12 +9,11 @@ import dataset.capture_rig as rig
 
 
 MIN_BOX_PX = 16
-GRID_CELL_CM = 2000.0                  # spatial-hash cell size for the per-frame candidate cull
-NEIGHBOR_CELLS = 1                     # search a (2*N+1)^2 block of cells around the camera
-DEPTH_OCCLUSION_TOLERANCE_CM = 60.0    # candidate counts as occluded if the sampled depth
-                                        # is nearer than (candidate_depth - tolerance)
-DEPTH_SAMPLE_POINTS = ((0.5, 0.5), (0.25, 0.25), (0.75, 0.25), (0.25, 0.75), (0.75, 0.75))  # box-relative (u, v)
-MIN_VISIBLE_SAMPLE_FRACTION = 0.4      # >=2 of 5 samples must see "this candidate or nearer" to keep the box
+GRID_CELL_CM = 2000.0
+NEIGHBOR_CELLS = 1
+DEPTH_OCCLUSION_TOLERANCE_CM = 60.0
+DEPTH_SAMPLE_POINTS = ((0.5, 0.5), (0.25, 0.25), (0.75, 0.25), (0.25, 0.75), (0.75, 0.75))
+MIN_VISIBLE_SAMPLE_FRACTION = 0.4
 
 CLASS_NAMES = {1: "coral", 2: "kelp", 3: "rock", 4: "sponge"}
 
@@ -88,15 +24,10 @@ def candidates_cache_path(cfg):
 
 
 def get_visibility_range_cm(rig_label="BP_UnderWater5"):
-    """Reads the live 'Fog Distance' BP variable - see module docstring caveat."""
     eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     actor = next(a for a in eas.get_all_level_actors() if a.get_actor_label() == rig_label)
     return float(actor.get_editor_property("Fog Distance"))
 
-
-# ---------------------------------------------------------------------------
-# One-time candidate gathering (world-space AABBs), cached to disk
-# ---------------------------------------------------------------------------
 
 def _class_of(name, class_stencil_map):
     for sid, prefixes in class_stencil_map.items():
@@ -106,9 +37,6 @@ def _class_of(name, class_stencil_map):
 
 
 def gather_candidates(cfg):
-    """Returns list of {"class_id": int, "center": (x,y,z), "half_extent": (hx,hy,hz)}
-    world-space AABBs for every foliage instance / mesh actor matching
-    tag_stencil_classes.CLASS_STENCIL_MAP. Static geometry - safe to cache."""
     import dataset.tag_stencil_classes as tag
 
     eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
@@ -166,11 +94,6 @@ def load_candidates(path):
         return json.load(f)
 
 
-# ---------------------------------------------------------------------------
-# Spatial hash grid - 68k+ candidates is too many to project every frame;
-# only examine the ones near the camera.
-# ---------------------------------------------------------------------------
-
 def build_grid(candidates, cell_size_cm=GRID_CELL_CM):
     grid = {}
     for idx, c in enumerate(candidates):
@@ -189,16 +112,7 @@ def nearby_candidate_indices(grid, cell_size_cm, cam_x, cam_y, neighbor_cells=NE
     return idxs
 
 
-# ---------------------------------------------------------------------------
-# Manual pinhole projection (world -> screen). Camera basis from the pose's
-# Rotator; fov_angle is UE's HORIZONTAL fov - fine to reuse for vertical too
-# since CAPTURE_RESOLUTION is square (aspect 1:1, verified live).
-# ---------------------------------------------------------------------------
-
 def _project_point(cam_loc, forward, right, up, half_fov_tan, res_x, res_y, wx, wy, wz):
-    """Returns (screen_x, screen_y, depth_cm) or None if behind the camera.
-    depth_cm is the FORWARD (planar) camera-space depth - same convention as
-    the engine's SceneDepth."""
     dx, dy, dz = wx - cam_loc.x, wy - cam_loc.y, wz - cam_loc.z
     x_cam = dx * right.x + dy * right.y + dz * right.z
     y_cam = dx * up.x + dy * up.y + dz * up.z
@@ -220,7 +134,7 @@ def _project_candidate_box(cam_loc, forward, right, up, half_fov_tan, res_x, res
                 proj = _project_point(cam_loc, forward, right, up, half_fov_tan, res_x, res_y,
                                        cx + sx * hx, cy + sy * hy, cz + sz * hz)
                 if proj is None:
-                    return None  # a corner is behind/at the camera plane - skip (conservative)
+                    return None
                 px, py, pz = proj
                 xs.append(px); ys.append(py); depths.append(pz)
     x0, x1 = max(0.0, min(xs)), min(float(res_x), max(xs))
@@ -230,17 +144,8 @@ def _project_candidate_box(cam_loc, forward, right, up, half_fov_tan, res_x, res
     return x0, y0, x1, y1, min(depths)
 
 
-# ---------------------------------------------------------------------------
-# Per-frame labeling
-# ---------------------------------------------------------------------------
-
 def run_labeling(cfg, poses, candidates, grid, visibility_range_cm, output_dir,
                   start_frame=0, end_frame=None, world=None):
-    """Re-renders ONLY the depth capture at each saved pose (RGB is untouched
-    on disk) and writes YOLO label .txt files + returns the per-frame records
-    to append into the dataset.json manifest. Mirrors capture_rig.run_capture's
-    chunking contract - call in slices of frames per round-trip.
-    """
     end_frame = len(poses) if end_frame is None else end_frame
     if world is None:
         world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()

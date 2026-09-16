@@ -1,12 +1,4 @@
-"""
-Sample a finished (hand- or auto-edited) SplineComponent into evenly arc-length-
-spaced camera poses for dataset capture, and write a reproducible JSON manifest.
-
-Deliberately does NOT use unreal.SplineComponent.get_location_at_distance_along_spline
-- see gotcha #1 in config.py. Builds its own cumulative-distance array from the
-actual control points and interpolates directly, which is exact for a LINEAR spline
-and safe regardless of how irregular the segment spacing is.
-"""
+"""Sample a finished (hand- or auto-edited) SplineComponent into evenly arc-length- spaced camera poses for dataset capture, and write a reproducible JSON manifest."""
 import json
 import math
 import os
@@ -35,14 +27,7 @@ def _bracket(dists, dist):
 
 
 def sample_poses(spline_component, num_frames, fixed_pitch_deg=-8.0, seed=42):
-    """
-    Returns a list of {frame, distance_along_spline_cm, location{x,y,z}, rotation{pitch,yaw,roll}}
-    evenly spaced by arc length (num_frames samples over the whole path, endpoints included).
-    Yaw comes from the local segment's tangent direction; pitch is held fixed (this project
-    deliberately dropped yaw/pitch jitter - see the plan doc if reintroducing it later).
-    """
-    random.seed(seed)  # not used for randomization yet, but seeded now for when domain
-                        # randomization (Step 7 in the original plan) starts consuming it.
+    random.seed(seed)
 
     n = spline_component.get_number_of_spline_points()
     pts = [spline_component.get_location_at_spline_point(i, unreal.SplineCoordinateSpace.WORLD) for i in range(n)]

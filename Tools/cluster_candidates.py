@@ -1,26 +1,4 @@
-"""
-Quick, cheap PREVIEW of a fundamentally different fix: 3D-proximity clustering
-of the raw candidate geometry (Dataset/candidates_cache.json - the 68,808
-foliage-instance/rock AABBs Step 5 gathered), BEFORE any per-frame projection.
-
-Why this exists: the 2D IoU-merge in merge_labels.py only fixes boxes that
-already overlap heavily in a given frame's screen space. It can't turn a
-"carpet" of 50 separate-but-adjacent coral instances into one blob, because
-none of them overlap enough in 2D. To actually get toward "a handful of boxes
-per distinct colony," the merge has to happen in 3D, once, on the real world
-geometry - two candidates of the same class are unioned if the gap between
-their bounding spheres is <= --radius (i.e. touching or within radius cm of
-each other), using union-find over a spatial grid so it stays fast at 68k
-candidates.
-
-This script ONLY reports cluster counts (no Unreal, no frame projection) so
-you can sanity-check a radius choice in seconds before committing to a full
-(slow) re-run of the per-frame Unreal depth-capture + projection pipeline.
-
-Usage:
-    python Tools/cluster_candidates.py --radius 150
-    python Tools/cluster_candidates.py --radius 150,300,600   # compare several
-"""
+"""Quick, cheap PREVIEW of a fundamentally different fix: 3D-proximity clustering of the raw candidate geometry (Dataset/candidates_cache.json - the 68,808 foliage-instance/rock AABBs Step 5 gathered), BEFORE any per-frame projection."""
 import argparse
 import json
 import math
@@ -37,9 +15,6 @@ def load_candidates():
 
 
 def cluster(candidates, radius_cm):
-    """Union-find over a spatial grid (cell = radius_cm, per class), merging
-    candidates whose bounding-sphere gap <= radius_cm. Returns list of merged
-    clusters: {"class_id", "center": (x,y,z), "half_extent": (hx,hy,hz), "merged_from": int}."""
     n = len(candidates)
     parent = list(range(n))
 

@@ -1,30 +1,7 @@
-"""
-Validate, repair, and decimate a LINEAR unreal.SplineComponent camera path so it:
-  (a) never dips below the landscape surface, and
-  (b) keeps a minimum clearance from nearby obstacle meshes (e.g. rocks).
-
-All functions take explicit actor lists / a SplineComponent rather than reading
-config.py directly, so they stay reusable outside this one project. Use
-gather_actors() + get_spline_component() to build those inputs from config.py's
-label patterns.
-
-Run from Unreal's Python console / execute_python_code, e.g.:
-
-    import dataset.config as cfg
-    import dataset.path_validation as pv
-    world = pv.get_world()
-    water, rocks, foliage = pv.gather_actors(cfg)
-    sp = pv.get_spline_component(cfg.SPLINE_ACTOR_LABEL)
-    violations = pv.validate(world, sp, water, rocks)
-    print(violations["summary"])
-"""
+"""Validate, repair, and decimate a LINEAR unreal.SplineComponent camera path so it: (a) never dips below the landscape surface, and (b) keeps a minimum clearance from nearby obstacle meshes (e.g. rocks)."""
 import math
 import unreal
 
-
-# ---------------------------------------------------------------------------
-# Actor / component lookup helpers
-# ---------------------------------------------------------------------------
 
 def get_world():
     return unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
@@ -36,7 +13,6 @@ def get_all_actors():
 
 
 def gather_actors(cfg):
-    """Returns (water_actors, rock_actors, foliage_actors) per config.py label patterns."""
     actors = get_all_actors()
     water = [a for a in actors if a.get_actor_label() in cfg.WATER_RIG_LABELS]
     rocks = [a for a in actors if a.get_actor_label().startswith(cfg.ROCK_LABEL_PREFIX)]
@@ -53,11 +29,6 @@ def get_spline_component(label):
     return get_spline_actor(label).get_components_by_class(unreal.SplineComponent)[0]
 
 
-# ---------------------------------------------------------------------------
-# Height policy (gotcha #2 in config.py: read HitResult via to_dict(), not
-# get_editor_property - the latter raises "protected" on this build)
-# ---------------------------------------------------------------------------
-
 def _trace_down(world, x, y, actors_to_ignore, z_top=3000.0, z_bot=-3000.0):
     top = unreal.Vector(x, y, z_top)
     bot = unreal.Vector(x, y, z_bot)
@@ -71,13 +42,6 @@ def _trace_down(world, x, y, actors_to_ignore, z_top=3000.0, z_bot=-3000.0):
 
 def required_height(world, x, y, water_actors, rock_actors,
                      ground_clearance_cm=150.0, climb_cap_cm=400.0):
-    """
-    Minimum safe camera Z at (x, y): GROUND_CLEARANCE above whatever's directly
-    below (rock or bare ground), UNLESS that thing is a rock/obstacle taller than
-    CLIMB_CAP above the bare-ground baseline - in which case cap the climb instead
-    of following the obstacle up (keeps the path from breaching very tall obstacles).
-    Returns None if no ground could be found under this point at all.
-    """
     zg = _trace_down(world, x, y, water_actors)
     if zg is None:
         return None
@@ -90,7 +54,6 @@ def required_height(world, x, y, water_actors, rock_actors,
 
 
 def landscape_height(world, x, y, water_actors, rock_actors, foliage_actors, landscape_label):
-    """Literal landscape surface height (no clearance buffer), ignoring rocks/foliage/water."""
     ignore = water_actors + rock_actors + foliage_actors
     top = unreal.Vector(x, y, 5000.0)
     bot = unreal.Vector(x, y, -5000.0)
@@ -106,11 +69,6 @@ def landscape_height(world, x, y, water_actors, rock_actors, foliage_actors, lan
     return d["location"].z
 
 
-# ---------------------------------------------------------------------------
-# Reading the current spline as plain python lists (bypasses gotcha #1 -
-# never use get_location_at_distance_along_spline on an irregular spline)
-# ---------------------------------------------------------------------------
-
 def read_points(spline_component):
     n = spline_component.get_number_of_spline_points()
     pts = [spline_component.get_location_at_spline_point(i, unreal.SplineCoordinateSpace.WORLD) for i in range(n)]
@@ -125,28 +83,8 @@ def write_points(spline_component, xs, ys, zs):
     spline_component.set_spline_points(pts, unreal.SplineCoordinateSpace.WORLD, True)
 
 
-# ---------------------------------------------------------------------------
-# Validation (fine, fixed-resolution sampling along the REAL polyline chords -
-# not the engine's distance-along-spline API)
-# ---------------------------------------------------------------------------
-
 def validate(world, spline_component, water_actors, rock_actors,
              sphere_radius_cm=80.0, ground_tolerance_cm=30.0, sample_step_cm=50.0):
-    """
-    Walks every control-point-to-control-point chord at sample_step_cm resolution and
-    checks CLEARANCE POLICY compliance (required_height - is the path maintaining its
-    intended float height, not just staying above ground) alongside rock-mesh clearance.
-
-    This is the right check to drive repair/decimation with (it's what those functions
-    optimize against), but it is NOT the same question as "is the path literally
-    underground" - a path can rack up "ground_violations" here just by dropping below
-    its intended cruise height while still being well above the actual terrain. For a
-    strict is-it-underground check, use validate_landscape_penetration() instead.
-
-    Returns a dict: {"ground_violations": int, "ground_samples": int, "worst_ground_cm": float,
-                      "rock_violations": int, "rock_samples": int, "rock_actors": set(str),
-                      "summary": str}
-    """
     xs, ys, zs = read_points(spline_component)
     n = len(xs)
     ground_viol = 0
@@ -200,13 +138,6 @@ def validate(world, spline_component, water_actors, rock_actors,
 
 def validate_landscape_penetration(world, spline_component, water_actors, rock_actors,
                                     foliage_actors, landscape_label, sample_step_cm=50.0):
-    """
-    Strict "is any part of the path literally below the landscape mesh" check - no
-    clearance buffer, ignores rocks/foliage/water so it reads the bare terrain only.
-    This is the check that matters for "did I clip through the ground", as distinct
-    from validate()'s clearance-policy check above.
-    Returns {"violations": int, "samples": int, "worst_cm": float}.
-    """
     xs, ys, zs = read_points(spline_component)
     n = len(xs)
     violations = 0
@@ -230,27 +161,10 @@ def validate_landscape_penetration(world, spline_component, water_actors, rock_a
     return {"violations": violations, "samples": n_samples, "worst_cm": worst}
 
 
-# ---------------------------------------------------------------------------
-# Repair: iterative "elastic band" horizontal repulsion away from rocks that
-# the path genuinely clips, + re-height every point that moves, + light
-# smoothing so the result stays a flowing curve instead of a zig-zag.
-# ---------------------------------------------------------------------------
-
 def repel_from_rocks(world, spline_component, water_actors, rock_actors,
                       num_iters=10, sphere_radius_cm=80.0, sample_step_cm=150.0,
                       push_step_cm=150.0, ground_clearance_cm=150.0, climb_cap_cm=400.0,
                       clamp_box=None):
-    """
-    Mutates the spline in place. Only pushes points that a REAL sphere-trace check
-    finds violating (not a crude "inside this rock's bounding box" proxy - that
-    over-triggers badly on a dense reef where big rocks legitimately fill most of
-    the area; see config.py note). Re-heights every point that moves >5cm, every
-    iteration, so later iterations validate against true 3D geometry rather than
-    stale heights (skipping this step silently reintroduces ground clipping).
-
-    clamp_box: optional (min_x, max_x, min_y, max_y) to keep the path from drifting
-    outside the intended survey area while dodging a big obstacle.
-    """
     xs, ys, zs = read_points(spline_component)
     n = len(xs)
     rock_origin_xy = {}
@@ -355,16 +269,6 @@ def repel_from_rocks(world, spline_component, water_actors, rock_actors,
 def fix_ground_penetration(world, spline_component, water_actors, rock_actors,
                             ground_tolerance_cm=30.0, sample_step_cm=50.0,
                             ground_clearance_cm=150.0, climb_cap_cm=400.0, max_passes=6):
-    """
-    Re-heights every existing point, then inserts corrective points wherever a
-    straight chord between two (individually fine) points would still dip below
-    the required height in between them. Repeats until a full pass finds nothing
-    left to insert. Mutates the spline in place.
-
-    IMPORTANT: use a resolution INDEPENDENT of segment length (fixed cm step, not
-    "a couple of samples per segment") - a coarse, length-scaled sample count will
-    silently miss dips that occur off-center on short-to-medium segments.
-    """
     xs, ys, zs = read_points(spline_component)
     n = len(xs)
     for i in range(n):
@@ -397,25 +301,8 @@ def fix_ground_penetration(world, spline_component, water_actors, rock_actors,
     write_points(spline_component, xs, ys, zs)
 
 
-# ---------------------------------------------------------------------------
-# Decimation: remove control points that are safe to remove (both the
-# resulting ground clearance AND rock clearance stay within tolerance),
-# ranked by how little each point curves the path (smallest triangle-area
-# deviation from its neighbours goes first).
-# ---------------------------------------------------------------------------
-
 def decimate_safe(world, spline_component, water_actors, rock_actors,
                    ground_tolerance_cm=30.0, sphere_radius_cm=80.0, sample_step_cm=50.0):
-    """
-    Mutates the spline in place. Greedy, safety-checked polyline simplification:
-    repeatedly removes the least-important remaining point IF the chord that would
-    replace its two edges still clears both terrain and rocks at sample_step_cm
-    resolution; otherwise permanently protects that point. Converges to the minimum
-    point count that is still provably safe at the given tolerances - if you need
-    fewer points than that, you are trading away real clearance, not just editing
-    convenience (loosen ground_tolerance_cm / shrink sphere_radius_cm to see the
-    tradeoff numerically before committing to it).
-    """
     import heapq
 
     xs, ys, zs = read_points(spline_component)

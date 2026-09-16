@@ -1,31 +1,4 @@
-"""Run all trained models on real (non-simulated) underwater test photos --
-this is the actual held-out test set for this project (as opposed to the val
-split used in 04_evaluate.py / 05_plot_test_predictions.py, which is used for
-early-stopping/checkpoint selection during training and isn't held out).
-
-These images (input_images/real_test_images/) are actual camera captures, not
-frames from the Unreal simulation the models were trained on -- so this is a
-genuine sim-to-real domain-gap check, not another in-distribution val split.
-There are no ground-truth labels for these, so results are qualitative only
-(no mAP can be computed) -- judge by eye, or use the aggregate detection-rate
-summary printed at the end.
-
-Runs every trained comparison model (no_aug, with_aug, no_aug_dr_trans,
-with_aug_dr_trans -- smoke_test is excluded, it's a 3-epoch yolo26n pipeline
-sanity check, not one of the real comparison models) and saves each model's
-own annotated predictions to its own subfolder:
-    output_images/real_test_preds/<model_name>/<image>.png
-One folder per model rather than side-by-side composites, since
-input_images/real_test_images/ now holds ~2000 photos (composites across 4
-models would be both slow to build and unwieldy to browse at that scale).
-
-output_images/real_test_predictions/ and output_images/real_test_dr_preds/
-(2-panel composites from the original 10-photo spot-check) are untouched --
-left as a historical record of that smaller run.
-
-Console output is intentionally sparse (progress every 100 images, not one
-line per image) since this now processes ~2000 photos x N models.
-"""
+"""Run all trained models on real (non-simulated) underwater test photos -- this is the actual held-out test set for this project (as opposed to the val split used in 04_evaluate.py / 05_plot_test_predictions.py, which is used for early-stopping/checkpoint selection during training and isn't held out)."""
 import os
 
 from PIL import Image

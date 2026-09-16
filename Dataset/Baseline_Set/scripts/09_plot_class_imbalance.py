@@ -1,17 +1,4 @@
-"""Plot per-class box-count imbalance (train vs. val) for the dataset
-currently referenced by data.yaml.
-
-Reads data.yaml the same way 00_preflight.py does, so this automatically
-reflects whichever image/label set is currently active (e.g. dr_trans_imgs).
-Class balance depends only on the label .txt files, not which image render
-they're paired with -- the dr_trans_imgs labels are an exact copy of the
-original input_images/labels/ set (see README), so this plot is the same
-regardless of which of the two image variants data.yaml currently points at.
-
-Saves a grouped bar chart to output_images/class_imbalance.png and prints
-the underlying per-class counts plus an imbalance ratio (max class / min
-class, per split).
-"""
+"""Plot per-class box-count imbalance (train vs. val) for the dataset currently referenced by data.yaml."""
 import os
 from collections import Counter
 

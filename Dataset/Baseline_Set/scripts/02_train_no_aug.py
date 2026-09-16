@@ -1,19 +1,4 @@
-"""Full training run: YOLO26l, 1024px, ALL augmentation disabled.
-
-Answers "does this dataset give good accuracy without augmentation?" directly.
-With only 400 training images, expect faster convergence but a larger
-train/val gap (overfitting) than the augmented run in 03_train_with_aug.py.
-
-Trains on the dr_trans_imgs image set (data.yaml now points train/val at
-input_images/dr_trans_imgs/images/{train,val}, reusing the same labels via
-input_images/dr_trans_imgs/labels/{train,val}). Output goes to
-runs/no_aug_dr_trans -- the original runs/no_aug (trained on the original
-input_images/images/{train,val} set, see TRAINING_REPORT.md) is untouched.
-
-Console output is intentionally terse: Ultralytics' own per-batch/per-epoch
-chatter is silenced and replaced with one summary line every 2 epochs (see
-utils/epoch_logger.py) instead of thousands of progress-bar redraws.
-"""
+"""Full training run: YOLO26l, 1024px, ALL augmentation disabled."""
 import os
 
 from ultralytics import YOLO
@@ -36,7 +21,6 @@ def main():
         amp=True,
         cache=True,
         lr0=0.001,
-        # augmentation fully disabled
         mosaic=0.0,
         mixup=0.0,
         copy_paste=0.0,

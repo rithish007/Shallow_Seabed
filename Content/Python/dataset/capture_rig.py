@@ -1,23 +1,4 @@
-"""
-Build (idempotently) a dual SceneCapture2D rig - one plain RGB capture, one raw
-scene-depth capture - and run it across a pose list to produce a paired image
-dataset on disk.
-
-Depth (not a class-color mask material) is used deliberately: see gotcha #3 in
-config.py. SCS_SCENE_DEPTH is a raw buffer capture and is unaffected by whatever
-is stopping post-process material blendables from evaluating on
-SceneCaptureComponent2D in this project. If you're on a project where that bug
-doesn't reproduce, a stencil-mask material capture can be added the same way -
-just give it its own render target (RGBA8 is fine for a class-color mask) and its
-own capture actor.
-
-Usage:
-    import dataset.config as cfg
-    import dataset.capture_rig as rig
-    rt_rgb, rt_depth = rig.ensure_render_targets(cfg)
-    rgb_actor, depth_actor = rig.ensure_capture_actors(cfg, start_location=<Vector>)
-    rig.run_capture(poses, rgb_actor, depth_actor, rt_rgb, rt_depth, output_dir, chunk_size=50)
-"""
+"""Build (idempotently) a dual SceneCapture2D rig - one plain RGB capture, one raw scene-depth capture - and run it across a pose list to produce a paired image dataset on disk."""
 import os
 import time
 
@@ -25,7 +6,6 @@ import unreal
 
 
 def ensure_render_targets(cfg):
-    """Creates /Game/Dataset/RT_Capture_RGB (RGBA8) and RT_Capture_Depth (RGBA32F) if missing."""
     asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
     factory = unreal.TextureRenderTargetFactoryNew()
 
@@ -41,15 +21,11 @@ def ensure_render_targets(cfg):
         return rt
 
     rt_rgb = _make(cfg.RT_RGB_NAME, unreal.TextureRenderTargetFormat.RTF_RGBA8)
-    # Depth needs float precision + range (real-world cm, up to the "no hit"/sky
-    # sentinel ~1e13) - an 8-bit target can't hold that. RGBA32F (not R32F) because
-    # ImageWriteBlueprintLibrary's EXR export only accepts PF_FloatRGBA / PF_A32B32G32R32F.
     rt_depth = _make(cfg.RT_DEPTH_NAME, unreal.TextureRenderTargetFormat.RTF_RGBA32F)
     return rt_rgb, rt_depth
 
 
 def ensure_capture_actors(cfg, start_location, rt_rgb=None, rt_depth=None):
-    """Spawns (or reuses) SCS_Capture_RGB / SCS_Capture_Depth and wires up their render targets."""
     eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     actors = {a.get_actor_label(): a for a in eas.get_all_level_actors()}
 
@@ -81,8 +57,7 @@ def ensure_capture_actors(cfg, start_location, rt_rgb=None, rt_depth=None):
 
 def _image_write_options(fmt):
     opts = unreal.ImageWriteOptions()
-    opts.set_editor_property("async_", False)   # MUST be False - the render target is reused next
-                                                  # frame, an async write would race the next capture.
+    opts.set_editor_property("async_", False)
     opts.set_editor_property("overwrite_file", True)
     opts.set_editor_property("format", fmt)
     return opts
@@ -90,19 +65,6 @@ def _image_write_options(fmt):
 
 def run_capture(poses, rgb_actor, depth_actor, rt_rgb, rt_depth, output_dir,
                  chunk=None, start_frame=0, end_frame=None):
-    """
-    Captures poses[start_frame:end_frame] to <output_dir>/rgb/frame_#####.png and
-    <output_dir>/depth/frame_#####.exr. Returns (count, elapsed_seconds).
-
-    NOTE ON CHUNKING: the MCP execute_python_code bridge used to develop this had a
-    ~30s per-call timeout; ~0.25-0.27s/frame was observed for a 1024x1024 dual
-    capture, so >100 frames per call risked timing out (the Unreal-side work still
-    completed even when the TOOL reported a timeout - files kept appearing on disk -
-    but you get no confirmation output). If driving this from a similar bridge, call
-    run_capture in slices of ~50-100 frames rather than passing the whole pose list
-    at once. Irrelevant if you're running this as a real .py script via the "py"
-    console command or a Blutility, which has no such timeout.
-    """
     end_frame = len(poses) if end_frame is None else end_frame
     rgb_dir = os.path.join(output_dir, "rgb")
     depth_dir = os.path.join(output_dir, "depth")
@@ -136,6 +98,5 @@ def run_capture(poses, rgb_actor, depth_actor, rt_rgb, rt_depth, output_dir,
 
 
 def read_depth_pixel(world, rt_depth, x, y):
-    """Depth (cm) is stored in the R channel only; G/B/A are 0. Sky/no-hit reads as a huge sentinel (~1e13)."""
     color = unreal.RenderingLibrary.read_render_target_raw_pixel(world, rt_depth, x, y, False)
     return color.r

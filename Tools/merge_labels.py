@@ -1,30 +1,4 @@
-"""
-Post-processes Step 5's per-instance YOLO labels with a greedy IoU merge, to fix
-the oversegmentation problem visible at close range (e.g. frame 250 had 606
-heavily-overlapping coral boxes - one per foliage instance - which is useless
-as training data even though each individual box was geometrically correct).
-
-Same-class boxes with IoU above --threshold get merged into one enclosing box.
-Greedy, area-descending, growing-cluster variant (not naive transitive closure):
-sort by area descending, seed a cluster with the largest remaining box, absorb
-any other unprocessed same-class box whose IoU against the CURRENT (growing)
-cluster box exceeds the threshold, re-check remaining boxes against the updated
-cluster each time a member is added, then emit the union as one box and repeat.
-
-STANDALONE script - run with regular system Python (not Unreal's embedded
-interpreter). No third-party dependencies (stdlib only).
-
-This keeps the original per-instance data for provenance (methodology write-up)
-and overwrites the trainable artifacts with the merged version:
-    Dataset/dataset_raw.json          <- backup of the original per-instance manifest (written once)
-    Dataset/dataset.json              <- overwritten with merged boxes (adds "merged_from" count per box)
-    Dataset/images/labels/*.txt       <- overwritten with merged YOLO boxes
-
-Usage:
-    python Tools/merge_labels.py                  # threshold 0.3 (default)
-    python Tools/merge_labels.py --threshold 0.4
-    python Tools/merge_labels.py --dry-run         # report stats only, don't write anything
-"""
+"""Post-processes Step 5's per-instance YOLO labels with a greedy IoU merge, to fix the oversegmentation problem visible at close range (e.g. frame 250 had 606 heavily-overlapping coral boxes - one per foliage instance - which is useless as training data even though each individual box was geometrically correct)."""
 import argparse
 import json
 import os
@@ -60,8 +34,6 @@ def iou(box_a, box_b):
 
 
 def merge_class_boxes(boxes, threshold):
-    """boxes: list of {"cx","cy","w","h"} (already filtered to one class). Returns
-    list of merged {"cx","cy","w","h","merged_from": int}."""
     items = [(b, to_corners(b)) for b in boxes]
     items.sort(key=lambda t: (t[1][2] - t[1][0]) * (t[1][3] - t[1][1]), reverse=True)
     remaining = list(items)

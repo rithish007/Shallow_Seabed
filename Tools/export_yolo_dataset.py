@@ -1,27 +1,4 @@
-"""
-Step 6 - export the merged labels (Dataset/dataset.json + images/rgb) into a
-standard Ultralytics-YOLO training layout with a train/val split.
-
-SPLIT METHOD: block-based, not per-frame-random. Frames are 500 evenly-spaced
-samples along one continuous spline path (~8m apart) with a ~12.4m visibility
-range, so consecutive frames see overlapping geometry - a naive per-frame
-random split would leak near-duplicate content across train/val and inflate
-validation metrics. Instead this chunks the path into contiguous blocks
-(BLOCK_SIZE frames each) and randomly assigns whole blocks to train/val, so
-adjacent frames stay together and both splits still sample the whole path
-(not e.g. "first 80% of the path = train").
-
-CLASS ID REMAP: the raw labels use class_id 1-4 (matching
-tag_stencil_classes.CLASS_STENCIL_MAP's stencil values). YOLO/Ultralytics
-`data.yaml` `names` lists are 0-indexed - exporting the raw 1-4 ids verbatim
-against a 4-entry names list would silently shift every class by one. This
-script remaps 1->0, 2->1, 3->2, 4->3 while copying.
-
-STANDALONE - run with regular system Python (no third-party deps needed).
-
-Usage:
-    python Tools/export_yolo_dataset.py --out "Dataset/Baseline_Set" --val-fraction 0.2
-"""
+"""Step 6 - export the merged labels (Dataset/dataset.json + images/rgb) into a standard Ultralytics-YOLO training layout with a train/val split."""
 import argparse
 import json
 import os
@@ -45,7 +22,7 @@ def main():
     with open(os.path.join(DATASET_DIR, "dataset.json"), "r") as f:
         manifest = json.load(f)
 
-    class_names_raw = manifest["class_names"]  # {"1": "coral", "2": "kelp", "3": "rock", "4": "sponge"}
+    class_names_raw = manifest["class_names"]
     old_ids_sorted = sorted(int(k) for k in class_names_raw.keys())
     remap = {old_id: new_id for new_id, old_id in enumerate(old_ids_sorted)}
     names_0indexed = [class_names_raw[str(old_id)] for old_id in old_ids_sorted]

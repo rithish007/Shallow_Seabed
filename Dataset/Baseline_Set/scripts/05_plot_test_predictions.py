@@ -1,19 +1,4 @@
-"""Plot Ground Truth vs. no_aug_dr_trans vs. with_aug_dr_trans predictions
-side-by-side for every val image. This is a val-set comparison, NOT the held-
-out test set -- a genuine held-out test set of real (non-simulated) underwater
-photos exists separately at input_images/real_test_images (see
-07_predict_real_test_images.py) and val still had some influence on checkpoint
-selection via early stopping, so this isn't a perfectly blind test.
-
-Saves one composite PNG per val image (3 panels: GT | no_aug_dr_trans |
-with_aug_dr_trans) to output_images/testtheval_set_plots_dr_trans/ for manual
-browsing (named to make clear this tests against the VAL set, not the real
-test set). Deliberately a distinct folder from output_images/testtheval_set_plots/
-(the original baseline's GT/no_aug/with_aug comparison) -- both scripts save
-composites by plain per-image filename with no model-name suffix, so sharing
-one folder between the two model generations would silently overwrite one set
-with the other.
-"""
+"""Plot Ground Truth vs. no_aug_dr_trans vs. with_aug_dr_trans predictions side-by-side for every val image."""
 import os
 
 from PIL import Image, ImageDraw

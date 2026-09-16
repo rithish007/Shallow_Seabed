@@ -1,19 +1,4 @@
-"""
-Draws the YOLO label boxes from Dataset/dataset.json onto the RGB frames, so you
-can actually look at annotated images instead of trusting the raw .txt numbers.
-
-This is a STANDALONE script - run it with your regular system Python, NOT
-Unreal's embedded interpreter (that one has no PIL/numpy/cv2 - see the "Gotchas
-learned" note in CLAUDE.md). Needs Pillow: `pip install Pillow`.
-
-Usage (from the project root, or anywhere - paths are absolute):
-    python Tools/render_debug_overlays.py                  # ~20 frames spread across the dataset
-    python Tools/render_debug_overlays.py --frames 0,250,306,499
-    python Tools/render_debug_overlays.py --all             # every frame (slow, 500 images)
-    python Tools/render_debug_overlays.py --count 40        # a different spread size
-
-Output: Dataset/debug_overlays/frame_#####.png (RGB + colored boxes + class labels)
-"""
+"""Draws the YOLO label boxes from Dataset/dataset.json onto the RGB frames, so you can actually look at annotated images instead of trusting the raw .txt numbers."""
 import argparse
 import json
 import os
@@ -23,10 +8,10 @@ from PIL import Image, ImageDraw, ImageFont
 DATASET_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Dataset")
 
 CLASS_COLORS = {
-    1: (230, 60, 60),     # coral - red
-    2: (60, 200, 90),     # kelp - green
-    3: (70, 120, 230),    # rock - blue
-    4: (230, 210, 60),    # sponge - yellow
+    1: (230, 60, 60),
+    2: (60, 200, 90),
+    3: (70, 120, 230),
+    4: (230, 210, 60),
 }
 
 
@@ -69,7 +54,6 @@ def draw_frame(manifest, frame_num, out_dir, class_names):
     draw.rectangle([0, 0, 8 + 7 * len(label), 18], fill=(0, 0, 0))
     draw.text((4, 2), label, fill=(255, 255, 255), font=font)
 
-    # small legend
     ly = 24
     for cid, name in sorted(class_names.items(), key=lambda kv: int(kv[0])):
         color = CLASS_COLORS.get(int(cid), (255, 255, 255))
