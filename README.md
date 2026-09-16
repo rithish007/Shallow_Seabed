@@ -15,7 +15,15 @@ foliage-instance-aware synthetic annotation pipeline for underwater scenes.
 - `Content/Materials/`, `Content/StaticMesh/`, `Content/ReefAssets/`, `Content/LUT_Texture/` —
   reef/seafloor materials, meshes, and colour-grading LUTs.
 - `Content/Blurprint/` — Blueprint logic for the underwater scene and camera survey rig.
-- `Tools/` — a standalone (non-Unreal-Python) post-processing pipeline that turns raw
+- `Content/Dataset/` — the stencil-based instance annotation rig: `M_StencilMask`, per-channel
+  render targets (`RT_Capture_RGB`/`RT_Capture_Mask`/`RT_Capture_Depth`), and the
+  `BP_SurveyPath` camera-survey Blueprint.
+- `Content/Python/dataset/` — the in-editor capture pipeline driving that rig: `capture_rig.py`
+  (drives the survey and grabs RGB/mask/depth per frame), `pose_sampling.py` (spline-based
+  camera pose generation), `tag_stencil_classes.py` (assigns per-actor stencil IDs),
+  `label_derivation.py` (turns captured masks into per-instance boxes), plus `config.py` /
+  `path_validation.py` / `example_full_run.py`.
+- `Tools/` — a standalone (non-Unreal-Python) post-processing pipeline that turns those raw
   per-instance foliage/rock annotations into a clean YOLO dataset:
   1. `merge_labels.py` — greedy IoU merge of oversegmented per-instance boxes (e.g. a "carpet"
      of adjacent coral instances collapsed into one label).
@@ -28,9 +36,15 @@ foliage-instance-aware synthetic annotation pipeline for underwater scenes.
   4. `render_debug_overlays.py` — draws the exported YOLO boxes back onto the RGB frames for
      visual sanity-checking. Run with a regular system Python (not Unreal's embedded
      interpreter), needs Pillow.
+- `Dataset/Baseline_Set/scripts/` — the downstream YOLO training/eval pipeline run on the
+  exported dataset: `02_train_no_aug.py` / `03_train_with_aug.py` (the augmentation
+  comparison), `04_evaluate.py`, `07_predict_real_test_images.py` (the sim-to-real check),
+  `08_predict_duo_test.py`, plus preflight/smoke-test/plotting scripts and `scripts/utils/`.
 
-A local `Dataset/` folder (raw survey captures + the derived `coral/kelp/rock/sponge` YOLO
-dataset this pipeline produces) is not published here — see [Related resources](#related-resources).
+The rest of `Dataset/` (raw survey captures, the ~2000-image derived `coral/kelp/rock/sponge`
+YOLO dataset itself, training logs, prediction outputs) is not published here on account of
+size — see [Related resources](#related-resources) for the published subset (two 500-frame
+image sets + the four trained checkpoints) on Hugging Face.
 
 ## Related resources
 
