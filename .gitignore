@@ -73,3 +73,19 @@ Plugins/**/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+
+# Project-specific: not published to the public repo
+# 12GB raw survey captures + the Baseline_Set YOLO dataset built from them (separate from
+# what's already published on the HF dataset repo) -- stays local only.
+Dataset/
+
+# Purchased "Thai Beach Corals" asset pack (shared asset id ufzkbcjfa) -- 3 of its 8 files
+# exceed GitHub's 100MB/file hard limit, and its Marketplace/Fab license may restrict
+# redistributing the raw files. Stays local; the project still opens fine without it pushed.
+*ufzkbcjfa*
+
+# Claude Code / VibeUE agent tooling -- dev-tool config and plugin, not part of the simulator.
+CLAUDE.md
+.mcp.json
+.claude/
+Plugins/Marketplace/VibeUE/

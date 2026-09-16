@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this code, please cite it as below."
 type: software
-title: "Shallow_Seabed: Unreal Engine 5 Synthetic Underwater Scene Simulator"
+title: "ShallowSeabed: Unreal Engine 5 Synthetic Underwater Scene Simulator"
 abstract: >-
   Descoped Unreal Engine 5.8 synthetic underwater scene simulator with a custom
   stencil-ID instance annotation pipeline, built as part of an MSc Robotics
