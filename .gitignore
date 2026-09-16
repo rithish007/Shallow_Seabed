@@ -76,8 +76,12 @@ DerivedDataCache/*
 
 # Project-specific: not published to the public repo
 # 12GB raw survey captures + the Baseline_Set YOLO dataset built from them (separate from
-# what's already published on the HF dataset repo) -- stays local only.
-Dataset/
+# what's already published on the HF dataset repo) -- stays local only. Exception: the
+# training/eval pipeline scripts themselves are small, pure code, and do get published.
+Dataset/*
+!Dataset/Baseline_Set/
+Dataset/Baseline_Set/*
+!Dataset/Baseline_Set/scripts/
 
 # Purchased "Thai Beach Corals" asset pack (shared asset id ufzkbcjfa) -- 3 of its 8 files
 # exceed GitHub's 100MB/file hard limit, and its Marketplace/Fab license may restrict
