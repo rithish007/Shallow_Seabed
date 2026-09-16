@@ -25,5 +25,5 @@ identifiers:
     value: "https://github.com/rithish007/ImgGen_AI"
     description: "Companion repository: the generative pipeline that shipped"
   - type: url
-    value: "https://huggingface.co/datasets/ArcaneEvolution/MScDissertation"
+    value: "https://huggingface.co/datasets/Rithish007/MScDissertation"
     description: "Companion dataset and trained model checkpoints (Hugging Face)"
